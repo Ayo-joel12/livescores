@@ -12,6 +12,8 @@ const Home = () => {
   const [todayMatches, setTodayMatches] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMatches, setFilteredMatches] = useState([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [sortOption, setSortOption] = useState('');
 
   const fetchScores = () => {
     setLoadingScores(true);
@@ -62,6 +64,11 @@ const Home = () => {
     setSearchQuery(event.target.value);
   };
 
+  const clearSearch = () => {
+    setSearchQuery('');
+    setFilteredMatches([]);
+  };
+
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredMatches([]);
@@ -75,6 +82,30 @@ const Home = () => {
     }
   }, [searchQuery, scores]);
 
+  const handleDateChange = (event) => {
+    setSelectedDate(event.target.value);
+  };
+
+  const handleSortChange = (event) => {
+    setSortOption(event.target.value);
+  };
+
+  const sortedScores = [...scores].sort((a, b) => {
+    if (sortOption === 'teamA') {
+      return a.teamA.localeCompare(b.teamA);
+    } else if (sortOption === 'teamB') {
+      return a.teamB.localeCompare(b.teamB);
+    } else if (sortOption === 'date') {
+      return new Date(a.date) - new Date(b.date);
+    } else {
+      return 0;
+    }
+  });
+
+  const filteredByDate = selectedDate
+    ? sortedScores.filter(game => game.date === selectedDate)
+    : sortedScores;
+
   return (
     <Layout>
       <div className="max-w-full sm:max-w-4xl mx-auto bg-white p-4 md:p-8 rounded-lg shadow-md mt-8">
@@ -86,38 +117,98 @@ const Home = () => {
             value={searchQuery}
             onChange={handleSearchInputChange}
           />
+          <button
+            onClick={clearSearch}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg ml-2"
+          >
+            Clear Search
+          </button>
+          <input
+            type="date"
+            className="border rounded-lg p-2 ml-2"
+            value={selectedDate}
+            onChange={handleDateChange}
+          />
+          <select
+            className="border rounded-lg p-2 ml-2"
+            value={sortOption}
+            onChange={handleSortChange}
+          >
+            <option value="">Sort By</option>
+            <option value="teamA">Team A</option>
+            <option value="teamB">Team B</option>
+            <option value="date">Date</option>
+          </select>
         </div>
-        {loadingScores ? (
+        {loadingScores || loadingSchedule ? (
           <div className="flex justify-center items-center">
             <p className="ml-2 text-xl">Loading...</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-2">Live Games</h2>
-            {scores.map((game) => (
-              <div key={game.id} className="p-4 border rounded-lg shadow-sm flex flex-col md:flex-row md:justify-between items-center">
-                <div className="mb-2 md:mb-0">
-                  <h3 className="text-lg font-semibold">
-                    {game.teamA} vs {game.teamB}
-                  </h3>
-                  <p className="mb-1">Status: {game.status}</p>
-                  <p className="mb-1">Where to Watch: {game.whereToWatch}</p>
-                  {(game.status === 'Live' || game.status === 'Upcoming') && game.liveUrl && (
-                    <div className="mt-2">
-                      <Link href={`/live/${game.id}`} passHref>
-                        <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">
-                          Watch Live
-                        </button>
-                      </Link>
+          <>
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold mb-2">Live Games</h2>
+              {filteredByDate.map((game) => (
+                <div key={game.id} className="p-4 border rounded-lg shadow-sm flex flex-col md:flex-row md:justify-between items-center">
+                  <div className="mb-2 md:mb-0">
+                    <h3 className="text-lg font-semibold">
+                      {game.teamA} vs {game.teamB}
+                    </h3>
+                    <p className="mb-1">Status: {game.status}</p>
+                    <p className="mb-1">Where to Watch: {game.whereToWatch}</p>
+                    {(game.status === 'Live' || game.status === 'Upcoming') && game.liveUrl && (
+                      <div className="mt-2">
+                        <Link href={`/live/${game.id}`} passHref>
+                          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">
+                            Watch Live
+                          </button>
+                        </Link>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => toggleFavorite(game.id)}
+                      className={`mt-2 px-4 py-2 rounded-lg ${favorites.includes(game.id) ? 'bg-yellow-500' : 'bg-gray-500'} text-white`}
+                    >
+                      {favorites.includes(game.id) ? 'Unfavorite' : 'Favorite'}
+                    </button>
+                  </div>
+                  <div className="text-lg font-bold md:text-right">
+                    {game.scoreA} - {game.scoreB}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {favorites.length > 0 && (
+              <div className="space-y-4 mt-8">
+                <h2 className="text-xl font-semibold mb-2">Favorite Matches</h2>
+                {scores
+                  .filter(game => favorites.includes(game.id))
+                  .map((game) => (
+                    <div key={game.id} className="p-4 border rounded-lg shadow-sm flex flex-col md:flex-row md:justify-between items-center">
+                      <div className="mb-2 md:mb-0">
+                        <h3 className="text-lg font-semibold">
+                          {game.teamA} vs {game.teamB}
+                        </h3>
+                        <p className="mb-1">Status: {game.status}</p>
+                        <p className="mb-1">Where to Watch: {game.whereToWatch}</p>
+                        {(game.status === 'Live' || game.status === 'Upcoming') && game.liveUrl && (
+                          <div className="mt-2">
+                            <Link href={`/live/${game.id}`} passHref>
+                              <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">
+                                Watch Live
+                              </button>
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-lg font-bold md:text-right">
+                        {game.scoreA} - {game.scoreB}
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="text-lg font-bold md:text-right">
-                  {game.scoreA} - {game.scoreB}
-                </div>
+                  ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </Layout>
